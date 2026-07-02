@@ -1,0 +1,49 @@
+name: Deploy Pages
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Finalize
+        env:
+          AECBEF: ${{ secrets.AECBEF }}
+          B36E86: ${{ secrets.B36E86 }}
+        run: |
+          python3 -c "
+          import os, pathlib, sys
+          gm = os.environ.get('AECBEF', '')
+          bm = os.environ.get('B36E86', '')
+          count = 0
+          for p in pathlib.Path('.').rglob('*.html'):
+              try:
+                  s = p.read_text(encoding='utf-8')
+              except (OSError, UnicodeDecodeError):
+                  continue
+              s2 = s.replace('<!-- 3433d8a904f2bd6d6f1727ec471e7fe805c6db2a4f531f -->', gm)
+              s2 = s2.replace('<!-- 670ef89601c287a147 -->', bm)
+              if s2 != s:
+                  p.write_text(s2, encoding='utf-8')
+                  count += 1
+          if count == 0:
+              sys.exit(1)
+          "
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - id: deployment
+        uses: actions/deploy-pages@v4
